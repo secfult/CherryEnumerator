@@ -2,9 +2,11 @@
 <mapping>
 	<port>80</port>
 	<service>http</service>
-	<commandstring>
-	<command>nikto</command>
+	<command friendlystring="nikto">nikto</command>
 </mapping>
+<mapping>
+	<service>http</service>
+	<command friendlystring="dirb">dirb http://[IP] /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt</command>
 <mapping>
 	<port>8080</port>
 	<command>nikto</port>
