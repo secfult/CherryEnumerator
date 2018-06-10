@@ -15,7 +15,7 @@ under the enumeration node.
 A separate file, CE-portactions.xml, will contain a many-to-many command 
 mapping that can be run against those ports for additional enumeration (or 
 exploitation).
-e.g. Run Nikto against port 80 http and 8080 http
+e.g. Run Nikto against port 80, any 'http' service, and port 8080
 
 This additional output will show up under the relevant <NMAP PORT RESULT> node.
 
@@ -61,14 +61,16 @@ import sys
 import subprocess
 from lxml import etree
 
-OUTPUTDIR = "./CE-output"
+OUTPUTDIR = "./output"
 NETRANGE = sys.argv[1]
 NMAPOUTFILE = OUTPUTDIR + "/nmap.xml"
+ACTIONSFILE = "actions.xml"
 
 class Host(object):
     IPADDR = ""
     HOSTNAME = ""
     PORTS = []
+    ACTIONS = []
 
     def print(self):
         print("IP address: " + self.IPADDR)
@@ -89,6 +91,16 @@ class Port(object):
 
     def print_singleline(self):
         print(self.PORTNUM + "/" + self.PROTOCOL + " " + self.SERVICE)
+
+class Action(object):
+    TARGETPORT = 0
+    TARGETSERVICE = ""
+    COMMAND = ""
+    FRIENDLYNAME = ""
+    OUTPUT = ""
+
+    def print(self):
+        print("Action: " + str(self.TARGETPORT) + "/" + self.TARGETSERVICE + "/" + self.FRIENDLYNAME + "/" + self.COMMAND)
 
 def setup_output_dir():
     if not os.path.exists(OUTPUTDIR):
@@ -135,12 +147,35 @@ def hostify_nmap_output(nmap_xml, hostlist):
 
         hostlist.append(host)
 
-def 
+def load_actions(fileloc):
+    """
+    Loads the actions file and returns a list of Action's
+    """
+    actionfile = open(fileloc)
+    #actions = actionfile.read()
+    xml = etree.parse(actionfile)
+
+    actions = xml.findall('mapping')
+
+    actionlist = []
+    for action in actions:
+        actionitem = Action()
+        
+        if action.findtext('port') is not None:
+            actionitem.TARGETPORT = action.findtext('port')
+        if action.findtext('service') is not None:
+            actionitem.TARGETSERVICE = action.findtext('service')
+        actionitem.COMMAND = action.findtext('command')
+        actionitem.FRIENDLYNAME = (action.find('command')).get('friendlystring')
+
+        actionlist.append(actionitem)
+
+    return actionlist
 
 setup_output_dir()
 
-#nmap_output = nmap_scan(NETRANGE)
-nmap_output = (open(NMAPOUTFILE)).read()
+nmap_output = nmap_scan(NETRANGE)
+#nmap_output = (open(NMAPOUTFILE)).read()
 
 hostlist = []
 hostify_nmap_output(NMAPOUTFILE, hostlist) # Should this be an assigned variable?
@@ -149,3 +184,41 @@ for host in hostlist:
     host.print()
     print("\n")
 
+actions = load_actions(ACTIONSFILE)
+
+for action in actions:
+    action.print()
+
+# Match enumerated hosts against the ports/services found in actionfile
+for host in hostlist:
+    #Store list of actions to run against the host so we don't double up
+    #hostactions = []
+
+    for port in host.PORTS:
+        for action in actions:
+            #print(str(port.PORTNUM) + " " + str(action.TARGETPORT) + " " + port.SERVICE + " " +action.TARGETSERVICE)
+            if port.PORTNUM == action.TARGETPORT:
+                # Run command, save output
+                action.COMMAND = action.COMMAND.replace('[IP]', host.IPADDR)
+
+                # TODO probably a better way to do this, also make this a function
+                commandpresentflag = 0
+                for hostaction in host.ACTIONS:
+                    if action.FRIENDLYNAME == hostaction.FRIENDLYNAME: # this would double up, ignore subsequent actions wiht same command
+                        commandpresentflag = 1
+                if not commandpresentflag:
+                    host.ACTIONS.append(action)
+                    print("IP " + host.IPADDR + " will have '" + action.COMMAND + "' run against port " + port.PORTNUM)
+            if port.SERVICE == action.TARGETSERVICE:
+                # Run command, save output
+                action.COMMAND = action.COMMAND.replace('[IP]', host.IPADDR)
+                # TODO probably a better way to do this
+                commandpresentflag = 0
+                for hostaction in host.ACTIONS:
+                    if action.FRIENDLYNAME == hostaction.FRIENDLYNAME: # this would double up, ignore subsequent actions wiht same command
+                        commandpresentflag = 1
+                if not commandpresentflag:
+                    host.ACTIONS.append(action)
+                    print("IP " + host.IPADDR + " will have '" + action.COMMAND + "' run against service " + port.SERVICE)
+
+# Run enumeration tasks against hosts

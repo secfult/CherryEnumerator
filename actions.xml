@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<mapping>
+		<port>80</port>
+		<service>http</service>
+		<command friendlystring="nikto">nikto -host [IP]</command>
+	</mapping>
+	<mapping>
+		<service>http</service>
+		<command friendlystring="dirb">dirb http://[IP] /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt</command>
+	</mapping>
+	<mapping>
+		<port>8080</port>
+		<command friendlystring="nikto">nikto</command>
+	</mapping>
+	<mapping>
+		<service>http</service>
+		<command friendlystring="nikto">nikto</command>
+	</mapping>
+	<mapping>
+		<port>80</port>
+		<command friendlystring="nikto">nikto</command>
+	</mapping>
+</root>
