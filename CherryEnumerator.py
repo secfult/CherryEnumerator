@@ -79,6 +79,23 @@ class Host(object):
             #print("Ports:")
             port.print_singleline()
 
+    def perform_actions(self):
+        for action in self.ACTIONS:
+            print("Running: " + str(action.COMMAND.split(" ")))
+            result = subprocess.run(action.COMMAND.split(" "), stdout=subprocess.PIPE)
+            action.OUTPUT = str(result.stdout)
+            print("Result: " + action.OUTPUT)
+
+    def append_unique_action(self, action):
+        commandpresentflag = 0
+        
+        for hostaction in self.ACTIONS:
+            if action.FRIENDLYNAME == hostaction.FRIENDLYNAME: # this would double up, ignore subsequent actions with same friendlyname
+                commandpresentflag = 1
+        if not commandpresentflag:
+            self.ACTIONS.append(action)
+            print("IP " + host.IPADDR + " will have '" + action.COMMAND + "' run against port " + port.PORTNUM)
+
 class Port(object):
     PROTOCOL = ""
     PORTNUM = 0
@@ -172,6 +189,7 @@ def load_actions(fileloc):
 
     return actionlist
 
+
 setup_output_dir()
 
 nmap_output = nmap_scan(NETRANGE)
@@ -198,27 +216,18 @@ for host in hostlist:
         for action in actions:
             #print(str(port.PORTNUM) + " " + str(action.TARGETPORT) + " " + port.SERVICE + " " +action.TARGETSERVICE)
             if port.PORTNUM == action.TARGETPORT:
-                # Run command, save output
                 action.COMMAND = action.COMMAND.replace('[IP]', host.IPADDR)
 
-                # TODO probably a better way to do this, also make this a function
-                commandpresentflag = 0
-                for hostaction in host.ACTIONS:
-                    if action.FRIENDLYNAME == hostaction.FRIENDLYNAME: # this would double up, ignore subsequent actions wiht same command
-                        commandpresentflag = 1
-                if not commandpresentflag:
-                    host.ACTIONS.append(action)
-                    print("IP " + host.IPADDR + " will have '" + action.COMMAND + "' run against port " + port.PORTNUM)
+                host.append_unique_action(action)
+
             if port.SERVICE == action.TARGETSERVICE:
-                # Run command, save output
                 action.COMMAND = action.COMMAND.replace('[IP]', host.IPADDR)
-                # TODO probably a better way to do this
-                commandpresentflag = 0
-                for hostaction in host.ACTIONS:
-                    if action.FRIENDLYNAME == hostaction.FRIENDLYNAME: # this would double up, ignore subsequent actions wiht same command
-                        commandpresentflag = 1
-                if not commandpresentflag:
-                    host.ACTIONS.append(action)
-                    print("IP " + host.IPADDR + " will have '" + action.COMMAND + "' run against service " + port.SERVICE)
+
+                host.append_unique_action(action)
 
 # Run enumeration tasks against hosts
+for host in hostlist:
+    host.perform_actions()
+
+# Load CherryTree template file
+
